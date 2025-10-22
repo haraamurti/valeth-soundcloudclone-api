@@ -12,7 +12,9 @@ import (
 func ConnectDatabase(config config.Config) (*gorm.DB, error) {
 	// Di sini kita menggunakan nilai yang sudah dibaca dari .env
 	// yaitu "db_URL" yang Anda petakan ke DatabaseURL
-	dsn := config.DatabaseURL
+// Menambahkan "host=" akan sering memaksa GORM
+// untuk menyelesaikan DNS ke IPv4 terlebih dahulu.
+dsn := config.DatabaseURL
 
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {

@@ -10,9 +10,9 @@ import (
 
 type Config struct {
 	DatabaseURL    string `mapstructure:"db_URL"` //menset database url untuk dari supabase
-	SupabaseURL    string `mapstructure:"SUPABASE_URL"` // akan dipakai nanti
-	SupabaseKey    string `mapstructure:"SUPABASE_KEY"`//akan dipakai nanti
-	SupabaseBucket string `mapstructure:"SUPABASE_BUCKET"`//akan dipakai nanti
+	// SupabaseURL    string `mapstructure:"SUPABASE_URL"` // akan dipakai nanti
+	// SupabaseKey    string `mapstructure:"SUPABASE_KEY"`//akan dipakai nanti
+	// SupabaseBucket string `mapstructure:"SUPABASE_BUCKET"`//akan dipakai nanti
 }
 
 
@@ -26,8 +26,8 @@ func LoadConfig(path string) (config Config, err error) {
 	// this will read the config file.
 	err = viper.ReadInConfig()
 	if err != nil {
-		return
 		fmt.Println("erorr reading config..")
+		return
 	}
 
 	// "Unmarshal" the loaded values into our Config struct
