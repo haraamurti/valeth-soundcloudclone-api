@@ -10,9 +10,10 @@ import (
 
 type Config struct {
 	DatabaseURL    string `mapstructure:"db_URL"` //menset database url untuk dari supabase
-	// SupabaseURL    string `mapstructure:"SUPABASE_URL"` // akan dipakai nanti
-	// SupabaseKey    string `mapstructure:"SUPABASE_KEY"`//akan dipakai nanti
-	// SupabaseBucket string `mapstructure:"SUPABASE_BUCKET"`//akan dipakai nanti
+	SupabaseURL    string `mapstructure:"SUPABASE_URL"` // akan dipakai nanti
+	SupabaseKey    string `mapstructure:"SUPABASE_KEY"`//akan dipakai nanti
+	SUPABASE_BUCKET_covers string `mapstructure:"SUPABASE_BUCKET_covers"`//akan dipakai nanti
+	SUPABASE_BUCKET_tracks string `mapstructure:"SUPABASE_BUCKET_tracks"`//akan dipakai nanti
 }
 
 

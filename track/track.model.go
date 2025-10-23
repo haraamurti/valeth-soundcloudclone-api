@@ -17,4 +17,5 @@ type Track struct {
 	Artist   string `json:"artist"`
 	URL      string `json:"url"`       // URL publik dari Supabase untuk streaming
 	PublicID string `json:"public_id"` // Nama file unik di Supabase (untuk hapus/update)
+	CoverURL string `json:"cover_url"`
 }
