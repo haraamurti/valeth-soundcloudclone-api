@@ -4,6 +4,7 @@ import (
 	"log"
 	"valeth-soundcloud-api/config"
 	"valeth-soundcloud-api/database"
+	"valeth-soundcloud-api/storage"
 
 	// Paket storage Anda
 	"valeth-soundcloud-api/track"
@@ -58,7 +59,7 @@ func main() {
 			"message": "Selamat datang di valeth SoundCloud API !",
 		})})
 
-
+supabaseClient := storage.InitSupabase(config)
 	// <-- BARIS BARU 1: Buat instance Handler-nya
 	trackHandler := track.NewHandler(DB, supabaseClient, config)
 
