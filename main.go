@@ -66,7 +66,7 @@ supabaseClient := storage.InitSupabase(config)
 	// <-- BARIS BARU 2: Daftarkan semua rute track (dari track.routes.go)
 	track.SetupTrackRoutes(v1, trackHandler)
 	// jalankan server
-	log.Println("Server berjalan di port 7272...")
-	log.Fatal(app.Listen(":7272"))
+	log.Println("Server berjalan di port 3000...")
+	log.Fatal(app.Listen(":3000"))
 }
 

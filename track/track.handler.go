@@ -84,10 +84,15 @@ func (h *Handler) UploadTrack(c *fiber.Ctx) error {
 		ContentType: &trackContentType,
 	})
 	if err != nil {
-		log.Println("Error upload track:", err)
+		// <-- PERBAIKAN LOGGING: Menggunakan %#v untuk debug error
+		log.Println("--- ERROR UPLOAD TRACK ---")
+		log.Printf("Tipe Error: %T\n", err)
+		log.Printf("Isi Error: %#v\n", err)
+		log.Println("--------------------------")
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Gagal upload file track"})
 	}
-	log.Println("Berhasil upload file track:", trackFileName)
+	// <-- PERBAIKAN 6: Mengganti ke '%s' agar nama file tercetak
+	log.Printf("Berhasil upload file track: %s", trackFileName)
 
 	// --- PROSES UPLOAD COVER (GAMBAR) ---
 	coverFile, err := coverFileHeader.Open()
@@ -107,10 +112,15 @@ func (h *Handler) UploadTrack(c *fiber.Ctx) error {
 		ContentType: &coverContentType,
 	})
 	if err != nil {
-		log.Println("Error upload cover:", err)
+		// <-- PERBAIKAN LOGGING: Menggunakan %#v untuk debug error
+		log.Println("--- ERROR UPLOAD COVER ---")
+		log.Printf("Tipe Error: %T\n", err)
+		log.Printf("Isi Error: %#v\n", err)
+		log.Println("--------------------------")
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Gagal upload file cover"})
 	}
-	log.Println("Berhasil upload file cover:", coverFileName)
+	// <-- PERBAIKAN 8: Mengganti ke '%s' agar nama file tercetak
+	log.Printf("Berhasil upload file cover: %s", coverFileName)
 
 
 	// 5. Dapatkan URL publik untuk kedua file
@@ -133,7 +143,11 @@ func (h *Handler) UploadTrack(c *fiber.Ctx) error {
 		// <-- PERBAIKAN 4: Mengganti DeleteFile menjadi RemoveFile
 		h.Supabase.RemoveFile(h.Config.SUPABASE_BUCKET_covers, []string{coverFileName})
 		
-		log.Println("Error simpan ke DB:", result.Error)
+		// <-- PERBAIKAN LOGGING: Menggunakan %#v untuk debug error
+		log.Println("--- ERROR SIMPAN DB ---")
+		log.Printf("Tipe Error: %T\n", result.Error)
+		log.Printf("Isi Error: %#v\n", result.Error)
+		log.Println("-----------------------")
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Gagal menyimpan data track"})
 	}
 
