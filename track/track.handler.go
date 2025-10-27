@@ -90,6 +90,8 @@ func (h *Handler) UploadTrack(c *fiber.Ctx) error {
 		log.Printf("Isi Error: %#v\n", err)
 		log.Println("--------------------------")
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Gagal upload file track"})
+
+		//entah kenapa erro disini sumaph asli
 	}
 	// <-- PERBAIKAN 6: Mengganti ke '%s' agar nama file tercetak
 	log.Printf("Berhasil upload file track: %s", trackFileName)
