@@ -52,6 +52,7 @@ func main() {
 	//setuping rute
 	v1 := app.Group("/api/v1")
 
+	//still dont know what s the error
 
 	//mencoba ping route link ke localhost dengan/
 	v1.Get("/", func(c *fiber.Ctx) error {
