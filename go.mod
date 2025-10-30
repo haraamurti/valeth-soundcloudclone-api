@@ -4,8 +4,8 @@ go 1.25.0
 
 require (
 	github.com/gofiber/fiber/v2 v2.52.9
+	github.com/nedpals/supabase-go v0.5.0
 	github.com/spf13/viper v1.21.0
-	github.com/supabase-community/storage-go v0.8.1
 	gorm.io/driver/postgres v1.6.0
 	gorm.io/gorm v1.31.0
 )
@@ -14,6 +14,7 @@ require (
 	github.com/andybalholm/brotli v1.1.0 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
+	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect

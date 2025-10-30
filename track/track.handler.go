@@ -2,154 +2,142 @@ package track
 
 import (
 	"fmt"
+	// "io" <-- Kita tidak jadi pakai ini
 	"log"
-	"path/filepath" // Import baru untuk mendapatkan ekstensi file
+	"path/filepath"
 	"valeth-soundcloud-api/config"
 
 	"github.com/gofiber/fiber/v2"
-	storage_go "github.com/supabase-community/storage-go"
+	// --- PERBAIKAN 1: Import library RESMI yang baru ---
+	supabase "github.com/nedpals/supabase-go"
+	// --- FIX 1 (BrokenImport): Path gorm yang benar ---
 	"gorm.io/gorm"
+	// --- Library 'storage_go' yang lama sudah dihapus ---
 )
 
-// Handler struct memegang semua "koneksi" yang dibutuhkan
-// (DB, Supabase, dan Config)
+// --- PERBAIKAN 2: Gunakan tipe client yang baru ---
 type Handler struct {
-	DB                 *gorm.DB
-	Supabase           *storage_go.Client
-	Config             config.Config
+	DB       *gorm.DB
+	Supabase *supabase.Client // <-- TIPE BARU
+	Config   config.Config
 }
 
-// NewHandler adalah "factory" untuk membuat handler baru
-// Ini akan kita panggil dari main.go nanti
-func NewHandler(db *gorm.DB, supabase *storage_go.Client, config config.Config) *Handler {
+// --- PERBAIKAN 3: Terima tipe client yang baru ---
+func NewHandler(db *gorm.DB, supabase *supabase.Client, config config.Config) *Handler {
 	return &Handler{
-		DB:                 db,
-		Supabase:           supabase,
-		Config:             config,
+		DB:       db,
+		Supabase: supabase,
+		Config:   config,
 	}
 }
 
-// UploadTrack adalah fungsi yang menangani logika upload
+// --- FUNGSI UPLOAD (LOGIKA BARU & FINAL) ---
 func (h *Handler) UploadTrack(c *fiber.Ctx) error {
-	// 1. Parse form-data
 	form, err := c.MultipartForm()
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Gagal parse form",
-		})
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Gagal parse form"})
 	}
 
-	// 2. Ambil data teks (title & artist)
 	title := form.Value["title"]
 	artist := form.Value["artist"]
 	if len(title) == 0 || len(artist) == 0 {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Title dan Artist wajib diisi",
-		})
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Title dan Artist wajib diisi"})
 	}
 
-	// 3. Ambil file MP3 (track_file)
-	files := form.File["track_file"]
-	if len(files) == 0 {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "File track (track_file) wajib diisi",
-		})
-	}
-	trackFileHeader := files[0]
-
-	// 4. Ambil file Gambar (cover_file)
-	coverFiles := form.File["cover_file"]
-	if len(coverFiles) == 0 {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "File cover (cover_file) wajib diisi",
-		})
-	}
-	coverFileHeader := coverFiles[0]
-
-	// --- PROSES UPLOAD TRACK (MP3) ---
+	// --- LOGIKA UPLOAD MP3 (PERBAIKAN FINAL) ---
+	trackFileHeader := form.File["track_file"][0]
 	trackFile, err := trackFileHeader.Open()
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Gagal membuka file track"})
 	}
-	defer trackFile.Close()
+	defer trackFile.Close() // <-- Kita defer Close() di sini
 
-	// Buat nama file unik (misal: 1678886400-track.mp3)
-	// Kita akan menggunakan Request ID yang nanti kita set di main.go
 	trackFileName := fmt.Sprintf("%v-%s", c.Locals("requestid"), trackFileHeader.Filename)
 	trackContentType := trackFileHeader.Header.Get("Content-Type")
 
-	// Upload ke Supabase Storage (Bucket 'tracks')
-	// <-- PERBAIKAN 1: Menambahkan '&'
-	_, err = h.Supabase.UploadFile(h.Config.SUPABASE_BUCKET_tracks, trackFileName, trackFile, storage_go.FileOptions{
-		ContentType: &trackContentType,
-	})
-	if err != nil {
-		// <-- PERBAIKAN LOGGING: Menggunakan %#v untuk debug error
-		log.Println("--- ERROR UPLOAD TRACK ---")
-		log.Printf("Tipe Error: %T\n", err)
-		log.Printf("Isi Error: %#v\n", err)
-		log.Println("--------------------------")
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Gagal upload file track"})
-
-		//entah kenapa erro disini sumaph asli
+	// PANGGILAN UPLOAD (PERBAIKAN FINAL v4)
+	// --- FIX 2 (IncompatibleAssign): Hapus '&' ---
+	trackOptions := &supabase.FileUploadOptions{
+		ContentType: trackContentType, // <-- Hapus '&'
 	}
-	// <-- PERBAIKAN 6: Mengganti ke '%s' agar nama file tercetak
-	log.Printf("Berhasil upload file track: %s", trackFileName)
+	
+	// --- PERBAIKAN v7: TANGKAP RESPONS UPLOAD! ---
+	trackResp := h.Supabase.Storage.From(h.Config.SUPABASE_BUCKET_tracks).Upload(trackFileName, trackFile, trackOptions)
+	
+	// --- LOGGING DEBUG BARU ---
+	log.Printf("--- DEBUG UPLOAD TRACK RESPONSE ---")
+	log.Printf("Isi Respons: %#v\n", trackResp)
+	log.Println("---------------------------------")
+	
+	// (ASUMSI: Jika 'Message' tidak kosong, berarti error)
+	// 'Message' adalah field umum, kita akan coba ini dulu.
+	if trackResp.Message != "" {
+		log.Printf("Error upload track (dari respons): %s", trackResp.Message)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Gagal upload file track", "message": trackResp.Message})
+	}
 
-	// --- PROSES UPLOAD COVER (GAMBAR) ---
+	// Kita panggil GetPublicUrl secara manual (FIX TYPO: 'U' kecil)
+	trackURL := h.Supabase.Storage.From(h.Config.SUPABASE_BUCKET_tracks).GetPublicUrl(trackFileName)
+
+	log.Printf("Berhasil (mencoba) upload file track: %s", trackFileName)
+
+	// --- LOGIKA UPLOAD COVER (PERBAIKAN FINAL) ---
+	coverFileHeader := form.File["cover_file"][0]
 	coverFile, err := coverFileHeader.Open()
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Gagal membuka file cover"})
 	}
-	defer coverFile.Close()
+	defer coverFile.Close() // <-- Kita defer Close() di sini
 
-	// Buat nama file unik (misal: 1678886400-cover.jpg)
-	coverExt := filepath.Ext(coverFileHeader.Filename) // Ambil ekstensi file (misal: .jpg)
+	coverExt := filepath.Ext(coverFileHeader.Filename)
 	coverFileName := fmt.Sprintf("%v-cover%s", c.Locals("requestid"), coverExt)
 	coverContentType := coverFileHeader.Header.Get("Content-Type")
 
-	// Upload ke Supabase Storage (Bucket 'covers')
-	// <-- PERBAIKAN 2: Menambahkan '&'
-	_, err = h.Supabase.UploadFile(h.Config.SUPABASE_BUCKET_covers, coverFileName, coverFile, storage_go.FileOptions{
-		ContentType: &coverContentType,
-	})
-	if err != nil {
-		// <-- PERBAIKAN LOGGING: Menggunakan %#v untuk debug error
-		log.Println("--- ERROR UPLOAD COVER ---")
-		log.Printf("Tipe Error: %T\n", err)
-		log.Printf("Isi Error: %#v\n", err)
-		log.Println("--------------------------")
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Gagal upload file cover"})
+	// PANGGILAN UPLOAD (PERBAIKAN FINAL v4)
+	// --- FIX 3 (IncompatibleAssign): Hapus '&' ---
+	coverOptions := &supabase.FileUploadOptions{
+		ContentType: coverContentType, // <-- Hapus '&'
 	}
-	// <-- PERBAIKAN 8: Mengganti ke '%s' agar nama file tercetak
-	log.Printf("Berhasil upload file cover: %s", coverFileName)
 
+	// --- PERBAIKAN v7: TANGKAP RESPONS UPLOAD! ---
+	coverResp := h.Supabase.Storage.From(h.Config.SUPABASE_BUCKET_covers).Upload(coverFileName, coverFile, coverOptions)
+	
+	// --- LOGGING DEBUG BARU ---
+	log.Printf("--- DEBUG UPLOAD COVER RESPONSE ---")
+	log.Printf("Isi Respons: %#v\n", coverResp)
+	log.Println("---------------------------------")
+	
+	if coverResp.Message != "" {
+		log.Printf("Error upload cover (dari respons): %s", coverResp.Message)
+		// Hapus file track yang mungkin sudah berhasil diupload (rollback)
+		h.Supabase.Storage.From(h.Config.SUPABASE_BUCKET_tracks).Remove([]string{trackFileName})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Gagal upload file cover", "message": coverResp.Message})
+	}
 
-	// 5. Dapatkan URL publik untuk kedua file
-	trackURL := h.Supabase.GetPublicUrl(h.Config.SUPABASE_BUCKET_tracks, trackFileName)
-	coverURL := h.Supabase.GetPublicUrl(h.Config.SUPABASE_BUCKET_covers, coverFileName)
+	
+	// Kita panggil GetPublicUrl secara manual (FIX TYPO: 'U' kecil)
+	coverURL := h.Supabase.Storage.From(h.Config.SUPABASE_BUCKET_covers).GetPublicUrl(coverFileName)
+	
+	log.Printf("Berhasil (mencoba) upload file cover: %s", coverFileName)
+
 
 	// 6. Simpan data ke Database PostgreSQL
 	newTrack := Track{
 		Title:    title[0],
 		Artist:   artist[0],
-		URL:      trackURL.SignedURL, // URL untuk MP3
-		PublicID: trackFileName,      // Nama file MP3 (untuk hapus)
-		CoverURL: coverURL.SignedURL, // URL untuk Gambar
+		// --- FIX 4 (MissingField): Ganti 'SignedURL' ke 'SignedUrl' ---
+		URL:      trackURL.SignedUrl,
+		PublicID: trackFileName,
+		// --- FIX 5 (MissingField): Ganti 'SignedURL' ke 'SignedUrl' ---
+		CoverURL: coverURL.SignedUrl,
 	}
 
 	if result := h.DB.Create(&newTrack); result.Error != nil {
-		// Jika gagal simpan DB, hapus file yg sudah diupload (rollback)
-		// <-- PERBAIKAN 3: Mengganti DeleteFile menjadi RemoveFile
-		h.Supabase.RemoveFile(h.Config.SUPABASE_BUCKET_tracks, []string{trackFileName})
-		// <-- PERBAIKAN 4: Mengganti DeleteFile menjadi RemoveFile
-		h.Supabase.RemoveFile(h.Config.SUPABASE_BUCKET_covers, []string{coverFileName})
-		
-		// <-- PERBAIKAN LOGGING: Menggunakan %#v untuk debug error
-		log.Println("--- ERROR SIMPAN DB ---")
-		log.Printf("Tipe Error: %T\n", result.Error)
-		log.Printf("Isi Error: %#v\n", result.Error)
-		log.Println("-----------------------")
+		// ROLLBACK (BARU)
+		h.Supabase.Storage.From(h.Config.SUPABASE_BUCKET_tracks).Remove([]string{trackFileName})
+		h.Supabase.Storage.From(h.Config.SUPABASE_BUCKET_covers).Remove([]string{coverFileName})
+
+		log.Printf("Error simpan ke DB: %v\n", result.Error)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Gagal menyimpan data track"})
 	}
 
