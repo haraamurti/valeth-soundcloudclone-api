@@ -2,6 +2,8 @@ package track
 
 import (
 	"fmt"
+	"net/http"
+
 	// "io" <-- Kita tidak jadi pakai ini
 	"log"
 	"path/filepath"
@@ -143,5 +145,90 @@ func (h *Handler) UploadTrack(c *fiber.Ctx) error {
 
 	// 7. Kembalikan data track yang baru sebagai JSON
 	return c.Status(fiber.StatusCreated).JSON(newTrack)
+
+
+	
+}
+// --- ⬇⬇⬇ HANDLER BARU KITA MULAI DARI SINI ⬇⬇⬇ ---
+
+// --- HANDLER BARU 1: Get All Tracks (List Lagu) ---
+// (GET /api/v1/tracks)
+func (h *Handler) GetAllTracks(c *fiber.Ctx) error {
+	var tracks []Track
+
+	// Ambil semua track dari database, urutkan dari yang paling baru
+	result := h.DB.Order("created_at desc").Find(&tracks)
+	if result.Error != nil {
+		log.Printf("Error mengambil tracks: %v\n", result.Error)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Gagal mengambil data tracks"})
+	}
+
+	// Kembalikan sebagai JSON (lengkap dengan URL track dan cover)
+	return c.Status(fiber.StatusOK).JSON(tracks)
 }
 
+// --- HANDLER BARU 2: Stream Track (Audio Saja) ---
+// (GET /api/v1/tracks/:id/audio)
+func (h *Handler) StreamTrack(c *fiber.Ctx) error {
+	// 1. Ambil ID dari URL parameter (misal: /api/v1/tracks/1/audio)
+	id := c.Params("id")
+	if id == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "ID track tidak valid"})
+	}
+
+	// 2. Cari track di database
+	var track Track
+	result := h.DB.First(&track, id)
+	if result.Error != nil {
+		// Jika tidak ada track dengan ID itu, kembalikan 404
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Track tidak ditemukan"})
+	}
+
+	// 3. Ambil file MP3 dari URL publik Supabase (track.URL)
+	// Server Go kita bertindak sebagai 'proxy' untuk men-stream file-nya
+	resp, err := http.Get(track.URL)
+	if err != nil {
+		log.Printf("Error mengambil file dari storage: %v\n", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Gagal mengambil file dari storage"})
+	}
+	// Pastikan kita menutup body-nya
+	defer resp.Body.Close()
+
+	// 4. Set Content-Type header agar browser/Postman tahu ini audio
+	c.Set("Content-Type", "audio/mpeg")
+
+	// 5. Stream file-nya (resp.Body) kembali ke client
+	return c.SendStream(resp.Body)
+}
+
+// --- HANDLER BARU 3: Stream Cover (Gambar Saja) ---
+// (GET /api/v1/tracks/:id/cover)
+func (h *Handler) StreamCover(c *fiber.Ctx) error {
+	// 1. Ambil ID dari URL parameter
+	id := c.Params("id")
+	if id == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "ID track tidak valid"})
+	}
+
+	// 2. Cari track di database
+	var track Track
+	result := h.DB.First(&track, id)
+	if result.Error != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Track tidak ditemukan"})
+	}
+
+	// 3. Ambil file Gambar dari URL publik Supabase (track.CoverURL)
+	resp, err := http.Get(track.CoverURL)
+	if err != nil {
+		log.Printf("Error mengambil cover dari storage: %v\n", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Gagal mengambil cover dari storage"})
+	}
+	defer resp.Body.Close()
+
+	// 4. Set Content-Type (kita tebak saja 'image/png' atau 'image/jpeg')
+	//    Browser/Postman cukup pintar untuk menanganinya.
+	c.Set("Content-Type", "image/png") // Anda bisa ganti ini jika perlu
+
+	// 5. Stream file-nya kembali ke client
+	return c.SendStream(resp.Body)
+}
