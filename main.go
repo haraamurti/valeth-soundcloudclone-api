@@ -30,15 +30,6 @@ func main() {
 		log.Fatal("Gagal memuat konfigurasi .env: ", err)
 	}
 
-	// --- LOG DEBUG BARU UNTUK TROUBLESHOOTING ---
-	if len(config.SupabaseKey) > 10 {
-		// Kita cetak 10 karakter pertama untuk verifikasi
-		log.Printf("DEBUG: Memuat SUPABASE_KEY (10 char pertama): %s...", config.SupabaseKey[0:10])
-	} else {
-		log.Printf("DEBUG: GAGAL memuat SUPABASE_KEY. Key kosong atau terlalu pendek.")
-	}
-	// --- AKHIR LOG DEBUG ---
-
 	//connect database dari data yang didapat dari config
 	DB, err := database.ConnectDatabase(config)
 	if err != nil {
@@ -62,8 +53,14 @@ func main() {
 	}
 	// --- AKHIR PERBAIKAN 3 ---
 
-	// inisialisasi fiber
-	app := fiber.New()
+	// --- ⬇⬇⬇ INI PERBAIKANNYA ⬇⬇⬇ ---
+	// inisialisasi fiber dengan BodyLimit yang lebih besar
+	app := fiber.New(fiber.Config{
+		// Set batas upload ke 100 MB (100 * 1024 * 1024)
+		BodyLimit: 100 * 1024 * 1024,
+	})
+	// --- ⬆⬆⬆ AKHIR PERBAIKAN ⬆⬆⬆ ---
+
 	app.Use(logger.New()) // menambah logger untuk tiap request
 	app.Use(requestid.New())
 	//setuping rute
@@ -82,7 +79,7 @@ func main() {
 
 	// <-- BARIS BARU 2: Daftarkan semua rute track (dari track.routes.go)
 	track.SetupTrackRoutes(v1, trackHandler)
-
+	
 	// jalankan server
 	log.Println("Server berjalan di port 1975...")
 	log.Fatal(app.Listen(":1975")) // (Saya biarkan port 1975 Anda)
